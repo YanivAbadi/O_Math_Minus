@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>משחק המספרים שלנו</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('background.png');
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            direction: rtl;
+        }
+        #game-container {
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            max-width: 90%;
+            width: 400px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        input, button {
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .cube {
+            display: inline-block;
+            width: 60px;
+            height: 60px;
+            margin: 5px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            font-size: 24px;
+            line-height: 60px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .cube:hover {
+            transform: scale(1.1);
+        }
+        #options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(5px); }
+            50% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+            100% { transform: translateX(0); }
+        }
+        .shake {
+            animation: shake 0.5s;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="welcome-screen">
+            <h1>ברוכים הבאים למשחק המספרים שלנו!</h1>
+            <input type="text" id="player-name" placeholder="הכנס את שמך">
+            <button id="start-game" onclick="startGame()">התחל משחק</button>
+        </div>
+        <div id="game-screen" style="display: none;">
+            <h2>מצאו את המספר הבא!</h2>
+            <div id="equation"></div>
+            <div id="options"></div>
+        </div>
+        <div id="end-screen" style="display: none;">
+            <h2 id="congratulations"></h2>
+            <button onclick="newGame()">משחק חדש</button>
+        </div>
+    </div>
+
+    <audio id="background-music" loop>
+        <source src="sound.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="correct-sound">
+        <source src="yes.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="wrong-sound">
+        <source src="no.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        let playerName = '';
+        let currentQuestion = 0;
+        let correctAnswers = 0;
+        let lastFirstNumber = -1; // Initialize with -1 to indicate no previous question
+
+        function startGame() {
+            playerName = document.getElementById('player-name').value;
+            if (playerName.trim() === '') {
+                alert('נא להכניס שם');
+                return;
+            }
+            document.getElementById('welcome-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+            document.getElementById('background-music').play();
+            newQuestion();
+        }
+
+        function getRandomPastelColor() {
+            const hue = Math.floor(Math.random() * 360);
+            return `hsl(${hue}, 100%, 85%)`;
+        }
+
+        function newQuestion() {
+            currentQuestion++;
+            if (currentQuestion > 5) {
+                endGame();
+                return;
+            }
+
+            let num1;
+            if (lastFirstNumber === -1) {
+                // First question: choose a random number between 0 and 20
+                num1 = Math.floor(Math.random() * 21);
+            } else {
+                // Subsequent questions: increase the number
+                let minNum = lastFirstNumber + 1;
+                let maxNum = Math.min(20, minNum + 4); // Ensure we don't exceed 20
+
+                // If we've reached or exceeded 20, reset to 11
+                if (minNum > 20) {
+                    minNum = 11;
+                    maxNum = 15;
+                }
+
+                num1 = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum;
+            }
+
+            const num2 = Math.floor(Math.random() * (num1 + 1)); // 0 to num1
+            const answer = num1 - num2;
+
+            lastFirstNumber = num1; // Update for the next question
+
+            const equationElement = document.getElementById('equation');
+            equationElement.innerHTML = `
+                <div class="cube" style="background-color: ${getRandomPastelColor()}">?</div> =
+                <div class="cube" style="background-color: ${getRandomPastelColor()}">${num2}</div> -
+                <div class="cube" style="background-color: ${getRandomPastelColor()}">${num1}</div>
+            `;
+
+            const options = [answer];
+            while (options.length < 6) {
+                const option = Math.floor(Math.random() * 21); // 0 to 20
+                if (!options.includes(option)) {
+                    options.push(option);
+                }
+            }
+            options.sort(() => Math.random() - 0.5);
+
+            const optionsElement = document.getElementById('options');
+            optionsElement.innerHTML = '';
+            options.forEach(option => {
+                const cube = document.createElement('div');
+                cube.className = 'cube';
+                cube.style.backgroundColor = getRandomPastelColor();
+                cube.textContent = option;
+                cube.onclick = () => checkAnswer(option, answer);
+                optionsElement.appendChild(cube);
+            });
+        }
+
+        function checkAnswer(selected, correct) {
+            if (selected === correct) {
+                document.getElementById('correct-sound').play();
+                document.querySelectorAll('#equation .cube')[0].textContent = correct;
+                correctAnswers++;
+                setTimeout(newQuestion, 1000);
+            } else {
+                document.getElementById('wrong-sound').play();
+                document.getElementById('equation').classList.add('shake');
+                setTimeout(() => {
+                    document.getElementById('equation').classList.remove('shake');
+                }, 500);
+            }
+        }
+
+        function endGame() {
+            document.getElementById('game-screen').style.display = 'none';
+            document.getElementById('end-screen').style.display = 'block';
+            document.getElementById('congratulations').textContent = `כל הכבוד ${playerName}, הצלחת ${correctAnswers} תרגילים!`;
+        }
+
+        function newGame() {
+            currentQuestion = 0;
+            correctAnswers = 0;
+            lastFirstNumber = -1; // Reset for a new game
+            document.getElementById('end-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+            newQuestion();
+        }
+
+        document.getElementById('player-name').addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                startGame();
+            }
+        });
+
+        document.getElementById('start-game').addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                startGame();
+            }
+        });
+    </script>
+</body>
+</html>
